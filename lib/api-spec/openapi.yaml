@@ -1,0 +1,166 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: NSFW/Nude Detection API for bots
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: nsfw
+    description: NSFW/Nude content detection
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /nsfw/check-url:
+    post:
+      operationId: checkNsfwUrl
+      tags: [nsfw]
+      summary: Check image from URL
+      description: Analyze an image from a URL for NSFW/nude content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NsfwUrlRequest"
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NsfwResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /nsfw/check-file:
+    post:
+      operationId: checkNsfwFile
+      tags: [nsfw]
+      summary: Check uploaded image file
+      description: Analyze an uploaded image file for NSFW/nude content
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Image file to analyze
+              required:
+                - image
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NsfwResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    NsfwUrlRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          description: URL of the image to analyze
+        threshold:
+          type: number
+          description: Confidence threshold (0-1) to consider content as NSFW. Defaults to 0.6
+          minimum: 0
+          maximum: 1
+      required:
+        - url
+    NsfwPrediction:
+      type: object
+      properties:
+        className:
+          type: string
+          description: "Category name (Drawing, Hentai, Neutral, Porn, Sexy)"
+        probability:
+          type: number
+          description: Confidence score (0-1)
+      required:
+        - className
+        - probability
+    NsfwResult:
+      type: object
+      properties:
+        isNsfw:
+          type: boolean
+          description: Whether the image is classified as NSFW/nude
+        score:
+          type: number
+          description: Combined NSFW score (0-1)
+        category:
+          type: string
+          description: Top detected category
+        predictions:
+          type: array
+          items:
+            $ref: "#/components/schemas/NsfwPrediction"
+          description: Detailed predictions for all categories
+        threshold:
+          type: number
+          description: Threshold used for the decision
+      required:
+        - isNsfw
+        - score
+        - category
+        - predictions
+        - threshold
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
