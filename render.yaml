@@ -4,13 +4,11 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
-    startCommand: pnpm --filter @workspace/api-server run start
+    buildCommand: "npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build"
+    startCommand: "pnpm --filter @workspace/api-server run start"
     envVars:
       - key: NODE_ENV
         value: production
       - key: LOG_LEVEL
         value: info
-      - key: PORT
-        fromPort: true
     healthCheckPath: /api/healthz
