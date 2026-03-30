@@ -12,11 +12,51 @@ function getApiKey() {
     } catch { return null; }
 }
 
+function detectFileType(buf) {
+    if (!buf || buf.length < 12) return { ext: "jpg", mime: "image/jpeg" };
+    // JPEG
+    if (buf[0] === 0xFF && buf[1] === 0xD8) return { ext: "jpg", mime: "image/jpeg" };
+    // PNG
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47)
+        return { ext: "png", mime: "image/png" };
+    // WebP (RIFF....WEBP)
+    if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+        buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50)
+        return { ext: "webp", mime: "image/webp" };
+    // GIF
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46)
+        return { ext: "gif", mime: "image/gif" };
+    // MP4 / video (ftyp box — có thể ở offset 4 hoặc offset khác)
+    if (buf.length >= 12) {
+        for (let offset = 0; offset <= Math.min(buf.length - 8, 64); offset += 4) {
+            const box = buf.slice(offset + 4, offset + 8).toString("ascii");
+            if (box === "ftyp" || box === "moov" || box === "mdat" || box === "free" || box === "skip") {
+                return { ext: "mp4", mime: "video/mp4" };
+            }
+        }
+    }
+    // AVI (RIFF....AVI )
+    if (buf.length >= 12 &&
+        buf.slice(0, 4).toString("ascii") === "RIFF" &&
+        buf.slice(8, 12).toString("ascii") === "AVI ")
+        return { ext: "avi", mime: "video/avi" };
+    // MKV / WebM
+    if (buf[0] === 0x1A && buf[1] === 0x45 && buf[2] === 0xDF && buf[3] === 0xA3)
+        return { ext: "mkv", mime: "video/webm" };
+    return { ext: "jpg", mime: "image/jpeg" };
+}
+
 export async function removeBackground(inputBuffer) {
     const apiKey = getApiKey();
 
+    const { ext, mime } = detectFileType(inputBuffer);
+    if (mime.startsWith("video/") || ["mp4","avi","mkv","webm","mov","flv"].includes(ext)) {
+        throw new Error(`File này là video (${ext.toUpperCase()}), không thể xóa nền!\n💡 Hãy reply vào ảnh (jpg/png/webp) nhé~`);
+    }
+
+    const filename = `image.${ext}`;
     const form = new FormData();
-    form.append("image_file", inputBuffer, { filename: "image.png", contentType: "image/png" });
+    form.append("image_file", inputBuffer, { filename, contentType: mime });
     form.append("size", "auto");
 
     const headers = {
